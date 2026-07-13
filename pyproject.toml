@@ -1,0 +1,25 @@
+[project]
+name = "suzuleague"
+version = "0.1.0"
+description = "高専祭ステージイベント「スズリーグ」進行システムのバックエンド"
+readme = "README.md"
+authors = [
+    { name = "InoueKoshi", email = "130729590+inouekoshi@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "rich>=15.0.0",
+    "scratchattach>=2.2.1",
+]
+
+[project.scripts]
+suzuleague = "suzuleague.dashboard:main"
+
+[build-system]
+requires = ["uv_build>=0.11.12,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]

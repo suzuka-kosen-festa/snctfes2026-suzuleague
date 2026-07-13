@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+*.egg-info/
+
+# pytest
+.pytest_cache/
+
+# エディタ・OS
+.DS_Store
+.idea/
+.vscode/
+
+# 生成物
+questions.txt

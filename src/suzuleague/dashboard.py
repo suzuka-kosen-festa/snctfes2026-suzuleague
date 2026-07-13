@@ -1,0 +1,261 @@
+"""司会進行用CLIダッシュボード。
+
+使い方:
+    uv run suzuleague                     # TurboWarp cloudに接続して進行
+    uv run suzuleague --offline           # cloud接続なしでロジックのみ確認
+    uv run suzuleague --project-id <ID>   # 接続先ルームの指定
+
+進行は next (n) で1段階ずつ進む。回答はScratch側からも、
+answer <0-100> (a) でこちらからも入力できる。
+"""
+
+from __future__ import annotations
+
+import argparse
+import threading
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
+from .cloud import CloudBridge, resolve_project_id
+from .engine import GameEngine, GameError, State
+from .protocol import ACK_ANIMATION_DONE
+
+STATE_LABELS = {
+    State.IDLE: "待機",
+    State.TEAM_INTRO: "チーム紹介",
+    State.QUESTION: "出題",
+    State.ANSWERING: "回答受付",
+    State.REVEAL: "正解発表",
+    State.ROUND_RESULT: "ラウンド結果",
+    State.TEAM_RESULT: "チーム結果",
+    State.EXHIBITION_ANSWERING: "回答受付(エキシビション)",
+    State.FINISHED: "全体結果",
+}
+
+# 各ステートで「next」が何をするかの案内
+NEXT_HINTS = {
+    State.IDLE: "next でチーム登場",
+    State.TEAM_INTRO: "next で出題へ",
+    State.QUESTION: "next で回答受付開始（シンキングタイム）",
+    State.ANSWERING: "回答を受けてから next で正解発表",
+    State.EXHIBITION_ANSWERING: "回答を受けてから next で正解発表",
+    State.REVEAL: "next でラウンド結果へ",
+    State.ROUND_RESULT: "next で次の問題（5問目終了後はチーム結果）へ",
+    State.TEAM_RESULT: "next で次のチーム（最終チーム後は全体結果）へ",
+    State.FINISHED: "ゲーム終了",
+}
+
+HELP_TEXT = """\
+コマンド一覧:
+  next / n           進行を1段階進める
+  answer <0-100> / a 回答を入力する（Scratch側からの回答の代行）
+  status / s         現在の状況を表示
+  teams / t          全チームのスコア一覧を表示
+  resync             cloud変数の状態を再送（Scratch側リロード後など）
+  help / h           このヘルプ
+  quit / exit        終了\
+"""
+
+
+class Dashboard:
+    def __init__(self, engine: GameEngine, bridge: CloudBridge | None) -> None:
+        self.engine = engine
+        self.bridge = bridge
+        self.console = Console()
+        self._lock = threading.Lock()  # engineへのアクセス保護（イベントスレッド対策）
+
+    # ---- cloudイベント（イベントスレッドから呼ばれる） ----------
+
+    def on_cloud_answer(self, percent: int) -> None:
+        with self._lock:
+            try:
+                self.engine.submit_answer(percent)
+            except GameError as e:
+                self.console.print(f"[yellow]Scratchからの回答を無視: {e}[/]")
+                return
+        self.console.print(
+            f"[bold cyan]● Scratchから回答を受信: {percent}%[/] → next で正解発表"
+        )
+
+    def on_cloud_ack(self, code: int) -> None:
+        if code == ACK_ANIMATION_DONE:
+            self.console.print("[cyan]● Scratch: アニメーション完了[/]")
+        else:
+            self.console.print(f"[cyan]● Scratch: ACK({code})[/]")
+
+    # ---- 表示 ----------------------------------------------------
+
+    def print_status(self) -> None:
+        engine = self.engine
+        snap = engine.snapshot()
+        team = engine.current_team
+        question = engine.current_question
+
+        lines = [f"[bold]ステート:[/] {STATE_LABELS[snap.state]}"]
+        if team:
+            fail = " [red](ゲームオーバー→エキシビション)[/]" if team.is_failed else ""
+            lines.append(
+                f"[bold]チーム:[/] {team.number} {team.name}"
+                f"　[bold]バルーン:[/] {team.balloons}{fail}"
+            )
+        if question:
+            lines.append(f"[bold]第{snap.round_no}問 (ID:{question.id}):[/] {question.text}")
+            lines.append(f"[bold]正解:[/] {question.correct}%（司会用・Scratchには発表時のみ送信）")
+        result = engine.last_result
+        if result and snap.state in (State.REVEAL, State.ROUND_RESULT):
+            tag = "[magenta]エキシビション[/] " if result.exhibition else ""
+            perfect = " [bold yellow]★ぴったり！[/]" if result.is_perfect else ""
+            lines.append(
+                f"{tag}回答 {result.answer}% / 正解 {result.correct}% "
+                f"→ ダメージ {result.damage}{perfect}"
+            )
+        lines.append(f"[dim]▶ {NEXT_HINTS[snap.state]}[/]")
+        conn = "オンライン" if self.bridge else "[yellow]オフライン[/]"
+        self.console.print(Panel("\n".join(lines), title=f"スズリーグ ({conn})"))
+
+    def print_teams(self) -> None:
+        table = Table(title="チーム一覧")
+        table.add_column("No.")
+        table.add_column("チーム名")
+        table.add_column("バルーン", justify="right")
+        table.add_column("消化", justify="right")
+        table.add_column("状態")
+        for team in self.engine.teams:
+            if team.finished_rounds == 0:
+                status = "未走行"
+            elif team.is_failed:
+                status = "[red]ゲームオーバー[/]"
+            elif team.finished_rounds < 5:
+                status = "挑戦中"
+            else:
+                status = "[green]クリア[/]"
+            table.add_row(
+                str(team.number),
+                team.name,
+                str(team.balloons),
+                f"{team.finished_rounds}/5",
+                status,
+            )
+        self.console.print(table)
+        if self.engine.state is State.FINISHED:
+            winner = self.engine.winner()
+            if winner:
+                self.console.print(
+                    f"[bold yellow]🏆 優勝: チーム{winner.number} {winner.name}"
+                    f"（バルーン{winner.balloons}）[/]"
+                )
+            else:
+                self.console.print("[red]クリアチームなし（優勝なし）[/]")
+
+    # ---- 操作 ----------------------------------------------------
+
+    def push_state(self) -> None:
+        if self.bridge is None:
+            return
+        try:
+            self.bridge.push(self.engine.snapshot())
+        except Exception as e:
+            self.console.print(f"[red]cloud送信失敗: {e}（resyncで再送できます）[/]")
+
+    def do_advance(self) -> None:
+        with self._lock:
+            try:
+                self.engine.advance()
+            except GameError as e:
+                self.console.print(f"[yellow]{e}[/]")
+                return
+        self.push_state()
+        self.print_status()
+        if self.engine.state is State.FINISHED:
+            self.print_teams()
+
+    def do_answer(self, arg: str) -> None:
+        try:
+            percent = int(arg)
+        except ValueError:
+            self.console.print("[yellow]使い方: answer <0-100>[/]")
+            return
+        with self._lock:
+            try:
+                self.engine.submit_answer(percent)
+            except GameError as e:
+                self.console.print(f"[yellow]{e}[/]")
+                return
+        self.console.print(f"回答 {percent}% を受け付けました → next で正解発表")
+
+    # ---- メインループ --------------------------------------------
+
+    def run(self) -> None:
+        self.console.print("[bold]スズリーグ 司会ダッシュボード[/]（help でコマンド一覧）")
+        self.print_status()
+        while True:
+            try:
+                line = input("suzuleague> ").strip()
+            except (EOFError, KeyboardInterrupt):
+                break
+            if not line:
+                continue
+            cmd, _, arg = line.partition(" ")
+            cmd = cmd.lower()
+            if cmd in ("quit", "exit"):
+                break
+            elif cmd in ("next", "n"):
+                self.do_advance()
+            elif cmd in ("answer", "a"):
+                self.do_answer(arg.strip())
+            elif cmd in ("status", "s"):
+                self.print_status()
+            elif cmd in ("teams", "t"):
+                self.print_teams()
+            elif cmd == "resync":
+                if self.bridge is None:
+                    self.console.print("[yellow]オフラインモードです[/]")
+                else:
+                    self.bridge.resync()
+                    self.console.print("状態を再送しました")
+            elif cmd in ("help", "h"):
+                self.console.print(HELP_TEXT)
+            else:
+                self.console.print(f"[yellow]不明なコマンド: {cmd}（help参照）[/]")
+        if self.bridge:
+            self.bridge.disconnect()
+        self.console.print("終了しました")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="スズリーグ 司会進行ダッシュボード")
+    parser.add_argument("--project-id", default=None, help="TurboWarp cloudのルームID")
+    parser.add_argument("--offline", action="store_true", help="cloud接続なしで起動")
+    parser.add_argument(
+        "--perfect-bonus",
+        type=int,
+        default=0,
+        help="ぴったり賞のボーナスバルーン数（採用時は10を指定）",
+    )
+    args = parser.parse_args()
+
+    engine = GameEngine(perfect_bonus=args.perfect_bonus)
+    bridge = None
+    if not args.offline:
+        project_id = resolve_project_id(args.project_id)
+        dashboard_holder: list[Dashboard] = []
+        bridge = CloudBridge(
+            project_id,
+            on_answer=lambda pct: dashboard_holder[0].on_cloud_answer(pct),
+            on_ack=lambda code: dashboard_holder[0].on_cloud_ack(code),
+        )
+        dashboard = Dashboard(engine, bridge)
+        dashboard_holder.append(dashboard)
+        print(f"TurboWarp cloudに接続中... (project_id={project_id})")
+        bridge.connect()
+        bridge.push(engine.snapshot())  # 初期状態を送信
+    else:
+        dashboard = Dashboard(engine, None)
+
+    dashboard.run()
+
+
+if __name__ == "__main__":
+    main()
