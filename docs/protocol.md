@@ -3,6 +3,9 @@
 Scratch担当向けの共有仕様です。バックエンド（Python/scratchattach）とScratchプロジェクトは
 **TurboWarpのクラウド変数**でやり取りします。
 
+> 全体像は [architecture.md](./architecture.md)、ステートの詳しい意味と遷移図は
+> [game-rules.md](./game-rules.md) を参照。
+
 ## 前提
 
 - プロジェクトは **TurboWarp** (`https://turbowarp.org/<プロジェクトID>`) で実行する

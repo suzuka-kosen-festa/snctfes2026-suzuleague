@@ -10,54 +10,52 @@ TurboWarpのクラウド変数を介して連携する。
 Scratch(TurboWarp) <-> TurboWarp cloud <-> Python(scratchattach) [<-> Firestore(将来)]
 ```
 
-- イベント内容: [docs/イベント責任者作成の企画書.md](docs/イベント責任者作成の企画書.md)
-- Scratch担当向け通信仕様: [docs/protocol.md](docs/protocol.md)
+## ドキュメント
 
-## セットアップ
+初見の人は上から順に読むのがおすすめ。
 
-[uv](https://docs.astral.sh/uv/) を使用。
+| ドキュメント | 内容 | 対象読者 |
+|---|---|---|
+| [docs/architecture.md](docs/architecture.md) | 全体構成・設計判断の理由・レイヤー構造・データフロー | 全員（まず読む） |
+| [docs/game-rules.md](docs/game-rules.md) | ゲームルール・進行ステートの遷移図・採点仕様 | 全員 |
+| [docs/protocol.md](docs/protocol.md) | Scratch⇔Python間のクラウド変数の通信仕様 | Scratch担当・バックエンド担当 |
+| [docs/development.md](docs/development.md) | セットアップ・動作確認・既知の落とし穴・本番チェックリスト | 開発者 |
+| [docs/イベント責任者作成の企画書.md](docs/イベント責任者作成の企画書.md) | イベントの企画書（ルール・タイムテーブル・台本） | 全員 |
 
-```
+## クイックスタート
+
+[uv](https://docs.astral.sh/uv/) が入っていればすぐ動く。
+
+```bash
 uv sync
-```
+uv run pytest        # テスト実行
 
-## 使い方
-
-```
-# 司会進行ダッシュボード（TurboWarp cloudに接続）
+# ターミナル1: 司会進行ダッシュボード
 uv run suzuleague
 
-# cloud接続なしでロジックだけ確認
-uv run suzuleague --offline
-
-# Scratch側シミュレータ（別ターミナルで。Scratch実装なしのE2E確認用）
-uv run python -m suzuleague.sim_scratch          # 手動回答
-uv run python -m suzuleague.sim_scratch --auto   # 自動回答
-
-# cloud疎通スモークテスト
-uv run python -m suzuleague.cloud
-
-# Scratch貼り付け用の問題文リストを生成
-uv run python -m suzuleague.questions > questions.txt
+# ターミナル2: Scratch側シミュレータ（Scratch実装なしで動作確認できる）
+uv run python -m suzuleague.sim_scratch --auto
 ```
 
-接続先ルームは `--project-id` または環境変数 `SUZULEAGUE_PROJECT_ID` で指定
-（デフォルトは開発用ルーム `suzuleague-dev`）。
+ダッシュボードで `n`（next）を打つとゲームが1段階ずつ進行し、
+シミュレータ側に「ステージ画面」の模擬表示が流れる。
+その他のコマンド・オプションは [docs/development.md](docs/development.md) 参照。
 
-## テスト
-
-```
-uv run pytest
-```
-
-## 構成
+## ソース構成
 
 | ファイル | 役割 |
 |---|---|
 | `src/suzuleague/models.py` | ドメインモデル (Question/Team/RoundResult) |
-| `src/suzuleague/questions.py` | 問題セット管理（コード内管理） |
-| `src/suzuleague/engine.py` | ゲーム進行ステートマシン・採点（通信非依存） |
-| `src/suzuleague/protocol.py` | cloud変数プロトコルのエンコード/デコード |
-| `src/suzuleague/cloud.py` | TurboWarp cloud接続ブリッジ |
+| `src/suzuleague/questions.py` | 問題セット管理（コード内管理）・Scratch貼り付け用エクスポート |
+| `src/suzuleague/engine.py` | ゲーム進行ステートマシン・採点（通信非依存の純ロジック） |
+| `src/suzuleague/protocol.py` | クラウド変数プロトコルのエンコード/デコード |
+| `src/suzuleague/cloud.py` | TurboWarp cloud接続ブリッジ（送信・受信・resync） |
 | `src/suzuleague/dashboard.py` | 司会進行用CLIダッシュボード |
 | `src/suzuleague/sim_scratch.py` | Scratch側シミュレータ（開発用） |
+| `tests/` | ユニットテスト（エンジン・プロトコル） |
+
+## 開発体制
+
+- バックエンド（このリポジトリ）: Python / scratchattach / uv
+- Scratch側: 別担当者が[既存プロジェクト](https://scratch.mit.edu/projects/493900220/)をリミックスして開発
+- 連絡・相談はDiscordで随時
