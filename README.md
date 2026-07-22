@@ -16,6 +16,7 @@ Scratch(TurboWarp) <-> TurboWarp cloud <-> Python(scratchattach) [<-> Firestore(
 
 | ドキュメント | 内容 | 対象読者 |
 |---|---|---|
+| [docs/status.md](docs/status.md) | 進捗状況・残タスク・未解決の論点・リスク | 全員（現状把握） |
 | [docs/architecture.md](docs/architecture.md) | 全体構成・設計判断の理由・レイヤー構造・データフロー | 全員（まず読む） |
 | [docs/game-rules.md](docs/game-rules.md) | ゲームルール・進行ステートの遷移図・採点仕様 | 全員 |
 | [docs/protocol.md](docs/protocol.md) | Scratch⇔Python間のクラウド変数の通信仕様 | Scratch担当・バックエンド担当 |
