@@ -212,6 +212,36 @@ Python側は `--cloud-host` か環境変数 `SUZULEAGUE_CLOUD_HOST` で指定す
 本家からの変更は「人数上限を環境変数 `MAX_CLIENTS` で指定できるようにした」
 「`render.yaml` を追加した」の2点だけで、プロトコルには一切手を入れていない。
 
+**本番の接続先**（2026-07-23 デプロイ済み）:
+
+| 項目 | 値 |
+|---|---|
+| URL | `wss://suzuleague-cloud.onrender.com` |
+| リージョン | Singapore（日本から最短） |
+| プラン | free（インスタンス数1） |
+| `MAX_CLIENTS` | 300 |
+| サービスID | `srv-d9go9isvikkc739qi500` |
+
+Scratch側は `https://turbowarp.org/<プロジェクトID>?cloud_host=wss://suzuleague-cloud.onrender.com`
+で開く。Python側は `SUZULEAGUE_CLOUD_HOST` に同じURLを設定する。
+
+#### 本番サーバでの実測（2026-07-23）
+
+| 接続数 | 接続成功 | 配信到達 | 遅延(中央値) |
+|---|---|---|---|
+| 100 | 100/100 | 99/99 | 124.0ms |
+| 150 | 150/150 | 149/149 | 113.4ms |
+| 300 | 227/300 | 測定不能 | ─ |
+
+**150接続までは全員に配信が届くことを確認済み**。遅延は約120msで、
+公開サーバ経由（約266ms）より速い。Singaporeリージョンを選んだ効果。
+
+300接続の失敗は**測定した側（Mac 1台）の限界**であってサーバの限界ではない。
+失敗理由はDNS解決エラー（`nodename nor servname provided`）と接続タイムアウトで、
+サーバのログには `Too many clients` も含めエラーが一切出ていない。
+`loadtest.py` は1接続ずつ順に繋ぐため1台から大量に繋ぐと詰まる。
+本番は観客それぞれの端末が並行して接続するので、この制約は当てはまらない。
+
 不調時のバックアップは、司会PC上でcloud-serverを動かして
 Cloudflare Quick Tunnel（無料・アカウント不要）で公開する手順を用意する。
 ただし同時200リクエストの上限があるため観客参加には余裕がなく、あくまで代替。
