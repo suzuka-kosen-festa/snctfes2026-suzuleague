@@ -1,7 +1,7 @@
 """問題セット管理（コード内管理）。
 
-本番の問題はアンケート集計スプレッドシートから作成予定。
-現時点ではプロトタイプ用のサンプル問題を置いている。
+本番の問題は企画側が実施したアンケート2種の集計結果から作成している
+（アンケート1: 485件 / アンケート2: 423件、いずれも2026-06-26実施）。
 
 問題文はcloud変数（数値のみ）で送れないため、ScratchへはIDのみ送信する
 「ID参照方式」を採用。Scratch側には表示用テキストのリストを持ってもらい、
@@ -15,41 +15,66 @@ from .models import Question
 ROUNDS_PER_TEAM = 5
 TEAM_COUNT = 4
 
-# サンプル問題（本番はアンケート結果から差し替える）
-# IDは 通し番号。チームtのラウンドr(1始まり)の問題ID = (t-1)*5 + r
-SAMPLE_QUESTIONS: list[Question] = [
+SURVEY_1 = "鈴鹿高専生485人アンケート"
+SURVEY_2 = "鈴鹿高専生423人アンケート"
+
+# 本番問題。IDは通し番号で、チームtのラウンドr(1始まり)の問題ID = (t-1)*5 + r
+#
+# 各チームが同じ難易度構成になるよう、正解値の分布を揃えてある:
+#   1問目=85%以上 / 2問目=30%以下 / 3問目=60-70% / 4問目=35-40% / 5問目=50%前後
+# 序盤は予想しやすい極端な値、終盤は差が出にくい中間値という並び。
+#
+# 正解値は集計結果の四捨五入。差し替えるときは docs/development.md の
+# 「リリースチェックリスト」に従い、Scratch側のリストも必ず同時に更新すること。
+PRODUCTION_QUESTIONS: list[Question] = [
     # チーム1
-    Question(1, "朝ごはんを毎日食べる人の割合は？", 62, "サンプル"),
-    Question(2, "犬派の人の割合は？", 48, "サンプル"),
-    Question(3, "夏休みの宿題を最終日にやる人の割合は？", 35, "サンプル"),
-    Question(4, "きのこの山派の人の割合は？", 55, "サンプル"),
-    Question(5, "朝型人間の割合は？", 28, "サンプル"),
+    Question(1, "三重県に住んでいる人の割合は？", 93, SURVEY_1),
+    Question(2, "テスト期間中に3本以上エナジードリンクを飲む人の割合は？", 19, SURVEY_2),
+    Question(3, "告白したこと、またはされたことがある人の割合は？", 68, SURVEY_1),
+    Question(4, "BeRealをダウンロードしている人の割合は？", 37, SURVEY_2),
+    Question(5, "月子チェックに行ったことがある人の割合は？", 49, SURVEY_2),
     # チーム2
-    Question(6, "通学に電車を使う人の割合は？", 44, "サンプル"),
-    Question(7, "カレーは甘口派の人の割合は？", 22, "サンプル"),
-    Question(8, "スマホの充電が50%を切ると不安な人の割合は？", 67, "サンプル"),
-    Question(9, "部活動に入っている人の割合は？", 71, "サンプル"),
-    Question(10, "テスト前日に徹夜したことがある人の割合は？", 39, "サンプル"),
+    Question(6, "部活動・同好会に入っている人の割合は？", 93, SURVEY_1),
+    Question(7, "身長が175cm以上ある人の割合は？", 18, SURVEY_2),
+    Question(8, "高専で1度でも赤点を取ったことがある人の割合は？", 70, SURVEY_1),
+    Question(9, "通学に1時間以上かかる人の割合は？", 40, SURVEY_2),
+    Question(10, "3DSで妖怪ウォッチシリーズをプレイしたことがある人の割合は？", 54, SURVEY_2),
     # チーム3
-    Question(11, "目玉焼きには醤油派の人の割合は？", 52, "サンプル"),
-    Question(12, "自分の学科が好きな人の割合は？", 80, "サンプル"),
-    Question(13, "お風呂は夜に入る人の割合は？", 85, "サンプル"),
-    Question(14, "遅刻したことがある人の割合は？", 58, "サンプル"),
-    Question(15, "ゲームを週3日以上する人の割合は？", 63, "サンプル"),
+    Question(11, "鈴鹿高専に第1志望で入学した人の割合は？", 92, SURVEY_1),
+    Question(12, "Nintendo Switch2を買った人の割合は？", 24, SURVEY_2),
+    Question(13, "中学のテストでランキング10位以内に入ったことがある人の割合は？", 70, SURVEY_2),
+    Question(14, "中学時代に得意だった教科が数学だった人の割合は？", 39, SURVEY_2),
+    Question(15, "アルバイトをしたことがある人の割合は？", 55, SURVEY_1),
     # チーム4
-    Question(16, "たけのこの里派の人の割合は？", 45, "サンプル"),
-    Question(17, "寮生活をしている人の割合は？", 30, "サンプル"),
-    Question(18, "プログラミングが得意だと思う人の割合は？", 41, "サンプル"),
-    Question(19, "高専祭を楽しみにしている人の割合は？", 77, "サンプル"),
-    Question(20, "将来も三重県に住みたい人の割合は？", 33, "サンプル"),
+    Question(16, "ゲームをするのが好きな人の割合は？", 87, SURVEY_2),
+    Question(17, "将来自分の子供にも高専に入学してほしい人の割合は？", 31, SURVEY_2),
+    Question(18, "過去と未来なら、過去に行きたい人の割合は？", 64, SURVEY_2),
+    Question(19, "好きなポテトチップスの味がコンソメの人の割合は？", 38, SURVEY_1),
+    Question(20, "自分のパソコンを持っている人の割合は？", 55, SURVEY_1),
 ]
+
+# 予備。問題を差し替えたくなったときの候補（集計済み・そのまま使える）。
+# ID は 101 以降にして本番の通し番号と衝突させない。
+SPARE_QUESTIONS: list[Question] = [
+    Question(101, "過去1ヶ月以内に紙のノートやルーズリーフで勉強した人の割合は？", 85, SURVEY_1),
+    Question(102, "購買のクッキーシューを食べたことがある人の割合は？", 62, SURVEY_1),
+    Question(103, "卒業後の進路に進学を希望している人の割合は？", 53, SURVEY_1),
+    Question(104, "体操服の色を選べるなら青を選ぶ人の割合は？", 56, SURVEY_1),
+    Question(105, "中学の内申点が41〜44だった人の割合は？", 52, SURVEY_1),
+    Question(106, "テスト期間に日付を跨ぐ前に寝ている人の割合は？", 28, SURVEY_2),
+    Question(107, "高専の定期テストで45点以下を取ったことがある人の割合は？", 43, SURVEY_2),
+    Question(108, "SNSのサブスクリプションを1つ以上登録している人の割合は？", 63, SURVEY_2),
+]
+
+# 旧名の互換用エイリアス（プロトタイプ期のサンプル問題は本番データに差し替え済み）
+SAMPLE_QUESTIONS = PRODUCTION_QUESTIONS
 
 
 class QuestionSet:
     """チーム×ラウンドへの問題割り当てを管理する。"""
 
     def __init__(self, questions: list[Question] | None = None) -> None:
-        self.questions = questions if questions is not None else SAMPLE_QUESTIONS
+        self.questions = questions if questions is not None else PRODUCTION_QUESTIONS
         need = TEAM_COUNT * ROUNDS_PER_TEAM
         if len(self.questions) < need:
             raise ValueError(f"問題数が不足: {len(self.questions)} < {need}")
