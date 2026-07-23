@@ -56,7 +56,7 @@ class GameEngine:
         self,
         teams: list[Team] | None = None,
         question_set: QuestionSet | None = None,
-        perfect_bonus: int = 0,  # ぴったり賞のボーナスバルーン数（採否未定のため既定0）
+        perfect_bonus: int = 0,  # ぴったり賞のボーナス。本番は不採用のため既定0のまま使う
         initial_balloons: int = 100,
     ) -> None:
         self.question_set = question_set or QuestionSet()

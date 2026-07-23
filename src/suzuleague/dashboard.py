@@ -232,7 +232,7 @@ def main() -> None:
         "--perfect-bonus",
         type=int,
         default=0,
-        help="ぴったり賞のボーナスバルーン数（採用時は10を指定）",
+        help="ぴったり賞のボーナスバルーン数（本番は不採用。指定しないこと）",
     )
     args = parser.parse_args()
 
