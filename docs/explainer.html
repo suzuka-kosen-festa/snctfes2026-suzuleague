@@ -1029,22 +1029,56 @@
     </figure>
 
     <div class="body-col">
-      <h3>だから、黒板を自分たちで用意することにした</h3>
+      <h3>だから、黒板を自分たちで用意した</h3>
       <p>
         この黒板サーバのプログラムは公開されているので、<strong>同じものを自分たちで動かせます。</strong>
         自分たちのものなら、128人という上限を書き換えられます。
       </p>
       <p>
-        費用はかけません。無料で使えるホスティングサービス（Render）に置く方針で、
-        <strong>Scratch側もPython側もプログラムの書き換えは不要</strong>です。
-        開くURLの末尾に接続先を書き足すだけで切り替わるようにしてあります。
+        費用はかけていません。無料で使えるホスティングサービス（Render）に置き、
+        <strong>2026年7月23日に稼働を開始しました。</strong>
+        Scratch側もPython側もプログラムの書き換えは不要で、
+        開くURLの末尾に接続先を書き足すだけで切り替わります。
       </p>
       <p>
-        自分たちのサーバにするメリットはもう一つあります。本家のサーバは
-        <strong>「有志が善意で運営している無料サービス」</strong>と明記されています。
-        日時が決まっているイベントの成否を、そこに預けるのは避けたいという判断です。
+        自分たちのサーバにするメリットはもう一つありました。本家のサーバには
+        「同じ場所から一度にたくさん繋ぐと弾かれる」制限がありますが、
+        <strong>プログラムを読んだところ、この制限はサーバ本体の機能ではありませんでした。</strong>
+        自分たちで動かせば存在しません。会場のWi-Fiは全員が同じ回線を通るので、
+        これは大きな違いです。
       </p>
     </div>
+
+    <figure>
+      <div class="panel">
+        <div class="bars">
+          <div class="bar-row">
+            <span class="bar-label">100人</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: 66.7%;"></div>
+            </div>
+            <span class="bar-out">100人全員に届いた</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">150人</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: 100%;"></div>
+            </div>
+            <span class="bar-out">150人全員に届いた</span>
+          </div>
+        </div>
+        <div class="limit-note" style="background: var(--stage-wash); border-left-color: var(--stage);">
+          <strong>自分たちのサーバで150人まで確認できました。</strong>
+          反応の速さは約0.12秒で、本家のサーバ（約0.27秒）より速いです。
+          日本に最も近いシンガポールに置いたためです。
+        </div>
+      </div>
+      <figcaption>
+        本番サーバでの実測（2026年7月23日）。上限は300人に設定してある。
+        300人でのテストも試したが、測定に使ったパソコン1台の側が先に限界を迎えたため、
+        サーバの限界はまだ見えていない。
+      </figcaption>
+    </figure>
 
     <div class="aside">
       <h4>無料ゆえの注意点がひとつ</h4>
@@ -1083,10 +1117,10 @@
             <span class="prog-track"><span class="prog-fill" style="width:100%"></span></span>
             <span class="prog-state">完了</span>
           </div>
-          <div class="prog-row">
+          <div class="prog-row" data-done="yes">
             <span class="prog-name">黒板サーバの用意</span>
-            <span class="prog-track"><span class="prog-fill is-none" style="width:0%"></span></span>
-            <span class="prog-state">これから</span>
+            <span class="prog-track"><span class="prog-fill" style="width:100%"></span></span>
+            <span class="prog-state">稼働中</span>
           </div>
           <div class="prog-row">
             <span class="prog-name">本番の問題データ</span>
@@ -1114,7 +1148,7 @@
     <div class="body-col">
       <h3>まだ決まっていないこと</h3>
       <ul class="plain">
-        <li><strong>観客は何人を想定するか</strong> ─ サーバの上限を何人に設定するかが、この数字で決まります。</li>
+        <li><strong>観客は何人を想定するか</strong> ─ 150人までは動作を確認済みです。それを超える見込みなら、追加で確かめる必要があります。</li>
         <li><strong>出場者のスマホ画面を客席から見えなくする方法</strong> ─ 手元の回答が見えると出題の意味がなくなります。企画書にも宿題として書かれています。</li>
       </ul>
     </div>
@@ -1135,7 +1169,7 @@
         <li><strong>ステージ画面が固まった／リロードした</strong> ─ 司会PCで <code>resync</code> と打つと、
           今の状態がすべて黒板に書き直され、画面が復帰します。</li>
         <li><strong>司会PCが落ちた</strong> ─ ステージ側は生存確認の信号が途切れたことを検知できます。</li>
-        <li><strong>サーバに繋がらない</strong> ─ 司会PC上で黒板を動かして急場をしのぐ手順を用意します。</li>
+        <li><strong>サーバに繋がらない</strong> ─ 司会PC上で黒板を動かし、外から見えるようにする手順を用意してあります。観客参加までは支えきれないので最終手段です。</li>
       </ul>
       <p>
         通信のしくみ上、黒板の内容は全員が切断されると消えます。
@@ -1149,6 +1183,7 @@
     <p>
       <b>この資料について</b><br>
       鈴鹿高専 高専祭2026 ステージイベント「スズリーグ」進行システムの技術解説。2026年7月23日時点の状況にもとづく。<br>
+      黒板サーバの接続先: <code>wss://suzuleague-cloud.onrender.com</code><br>
       詳細な仕様は開発リポジトリの docs/architecture.md・docs/protocol.md を参照。
     </p>
   </div>
