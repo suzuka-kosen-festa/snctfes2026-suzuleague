@@ -15,3 +15,6 @@ dist/
 
 # 生成物
 questions.txt
+
+# チーム構成（メンバーの氏名を含むためコミットしない。書式は teams.example.json）
+teams.json

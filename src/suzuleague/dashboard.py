@@ -21,6 +21,7 @@ from rich.table import Table
 from .cloud import ENV_CLOUD_HOST, CloudBridge, resolve_project_id
 from .engine import GameEngine, GameError, State
 from .protocol import ACK_ANIMATION_DONE
+from .teams import ENV_TEAMS, resolve_teams
 
 STATE_LABELS = {
     State.IDLE: "待機",
@@ -234,6 +235,11 @@ def main() -> None:
         help=f"接続先cloudサーバ (環境変数 {ENV_CLOUD_HOST} でも指定可。既定は公開サーバ)",
     )
     parser.add_argument(
+        "--teams",
+        default=None,
+        help=f"チーム構成JSONのパス (環境変数 {ENV_TEAMS} でも指定可。書式は teams.example.json)",
+    )
+    parser.add_argument(
         "--perfect-bonus",
         type=int,
         default=0,
@@ -241,7 +247,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    engine = GameEngine(perfect_bonus=args.perfect_bonus)
+    try:
+        teams = resolve_teams(args.teams)
+    except ValueError as e:
+        parser.error(str(e))
+
+    engine = GameEngine(teams=teams, perfect_bonus=args.perfect_bonus)
     bridge = None
     if not args.offline:
         project_id = resolve_project_id(args.project_id)
