@@ -142,6 +142,25 @@ uv run python -m suzuleague.loadtest --cloud-host ws://localhost:9080 --ramp 10,
 `MAX_CLIENTS` を指定しないと本家と同じ128人が上限になる。
 ポートは `PORT` で変えられる（`PORT=9081 npm start`）。
 
+### 観客用ページを更新する
+
+観客がスマホから開く画面は cloud サーバの `public/` から配信している。
+**問題文がページに埋め込まれているので、問題を差し替えたら必ず再生成する。**
+
+```bash
+# fork した cloud-server が隣にある前提
+uv run python -m suzuleague.audience -o ../cloud-server/public/suzuleague.html
+
+cd ../cloud-server
+git add public/suzuleague.html && git commit -m "観客ページを更新" && git push
+#   → Render が自動でデプロイする（数分）
+```
+
+生成物には**正解値を含めない**（先に見えてしまうため）。
+これは `tests/test_audience.py` で自動確認している。
+
+接続先: <https://suzuleague-cloud.onrender.com/suzuleague.html>
+
 ### 本番サーバが落ちたときの代替手段
 
 Render のサーバが当日不調だった場合、司会PC上でサーバを動かして
