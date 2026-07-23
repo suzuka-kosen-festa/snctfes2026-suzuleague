@@ -8,8 +8,14 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "rich>=15.0.0",
-    "scratchattach>=2.2.1",
+    # 上限を切ってあるのは、本番(2026/10/31-11/1)まで挙動を変えないため。
+    # とくに scratchattach は docs/development.md「既知の落とし穴」に書いた
+    # 罠を 2.2.1 で実測しており、更新すると前提が崩れる可能性がある。
+    "rich>=15.0.0,<16",
+    "scratchattach>=2.2.1,<3",
+    # scratchattach の依存として入ってくるが、cloud.py と loadtest.py が
+    # 直接 import しているので明示する（scratchattach 側が外しても壊れないように）
+    "websocket-client>=1.9.0,<2",
 ]
 
 [project.scripts]
