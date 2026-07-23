@@ -18,8 +18,24 @@ uv run pytest   # 動作確認（全テストが通ればOK）
 | パッケージ | 用途 |
 |---|---|
 | [scratchattach](https://github.com/TimMcCool/scratchattach) | TurboWarp cloudへの接続（Scratch APIラッパー） |
+| [websocket-client](https://github.com/websocket-client/websocket-client) | 生WebSocket接続（`fetch_all_vars` と `loadtest`） |
 | [rich](https://github.com/Textualize/rich) | CLIダッシュボードの表示 |
 | pytest (dev) | テスト |
+
+### 依存は本番まで更新しない
+
+`pyproject.toml` のバージョンに**上限を切ってある**。本番（2026/10/31〜11/1）まで
+挙動を変えないためで、意図的な措置。
+
+とくに **scratchattach は更新しないこと**。下記「既知の落とし穴」に書いた罠は
+すべて 2.2.1 での実測で、更新すると前提が崩れる可能性がある。
+`uv.lock` もコミットしてあるので、`uv sync` すれば全員が同じバージョンになる。
+
+セキュリティ上の理由などで更新が必要になった場合は、
+**更新後に必ずスモークテストとE2Eを通す**こと（ユニットテストは通信層を見ていない）。
+
+自動更新ツール（Renovate）は入れていない。理由は
+[#8](https://github.com/suzuka-kosen-festa/snctfes2026-suzuleague/issues/8) を参照。
 
 ## 動作確認の方法（3段階）
 
