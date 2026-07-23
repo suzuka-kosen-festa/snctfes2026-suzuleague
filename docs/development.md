@@ -117,16 +117,22 @@ URLの扱いで事故りやすい点を先回りして処理してある。
 
 セルフホスト先と同じサーバをローカルに立てられる。接続数の検証もこれで行う。
 
+本番で使うのは本家ではなく
+[inouekoshi/cloud-server](https://github.com/inouekoshi/cloud-server)（fork）。
+人数上限を環境変数で変えられるようにしてある。
+
 ```bash
-git clone https://github.com/TurboWarp/cloud-server && cd cloud-server
-npm install && npm start        # ws://localhost:9080 で起動
+git clone https://github.com/inouekoshi/cloud-server && cd cloud-server
+npm install
+MAX_CLIENTS=300 npm start       # ws://localhost:9080 で起動
 
 # 別ターミナルから
 uv run python -m suzuleague.cloud --cloud-host ws://localhost:9080   # 疎通確認
 uv run python -m suzuleague.loadtest --cloud-host ws://localhost:9080 --ramp 10,50,128,140
 ```
 
-同時接続数の上限は `src/Room.js` の `maxClients`（既定128）で決まる。
+`MAX_CLIENTS` を指定しないと本家と同じ128人が上限になる。
+ポートは `PORT` で変えられる（`PORT=9081 npm start`）。
 
 ## テスト
 
@@ -162,12 +168,18 @@ TurboWarpサーバは新規接続に現在値の初期ダンプを送るが、sc
 届かない。既存値が必要な場合は自前の `cloud.fetch_all_vars()`
 （生WebSocketで初期ダンプを読む）を使うこと。
 
-### 3. 同一IPからの接続レート制限
+### 3. 同一IPからの接続レート制限（公開サーバのみ）
 
 短時間に接続を繰り返すと、ハンドシェイクがタイムアウトするようになる
 （1〜2分のクールダウンで回復）。テストスクリプトの連続実行や
 TurboWarp画面の連続リロードで発生しやすい。本番前のリハーサルでは
 むやみに再起動しないこと。
+
+なお **cloud-server のソースにはIP単位の制限が一切実装されていない**
+（`ConnectionManager.js` にあるのは30秒間隔のping/pongによる死活監視だけ）。
+この制限は公開サーバの前段のインフラによるものなので、
+**セルフホストに切り替えれば発生しない**。会場Wi-Fiで観客が同一の
+グローバルIPに集約されても問題にならない。
 
 ### 4. イベントハンドラの停止漏れでプロセスが終わらない
 
