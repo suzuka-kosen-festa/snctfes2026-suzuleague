@@ -29,7 +29,12 @@ from .engine import Snapshot
 DEFAULT_PROJECT_ID = "suzuleague-dev"
 ENV_PROJECT_ID = "SUZULEAGUE_PROJECT_ID"
 HEARTBEAT_INTERVAL = 15.0  # 秒
+
+# TurboWarp公式の公開サーバ。開発中の既定の接続先。
+# 本番は1部屋128クライアントの上限を避けるためセルフホストのサーバに切り替える
+# （docs/architecture.md「同時接続数の上限とセルフホスト方針」参照）。
 TW_CLOUD_HOST = "wss://clouddata.turbowarp.org"
+ENV_CLOUD_HOST = "SUZULEAGUE_CLOUD_HOST"
 
 
 def resolve_project_id(cli_value: str | None = None) -> str:
@@ -37,10 +42,49 @@ def resolve_project_id(cli_value: str | None = None) -> str:
     return cli_value or os.environ.get(ENV_PROJECT_ID) or DEFAULT_PROJECT_ID
 
 
+def resolve_cloud_host(cli_value: str | None = None) -> str:
+    """接続先cloudサーバを CLI引数 > 環境変数 > 公開サーバ の順で決める。
+
+    ホスティングサービスの管理画面は `https://...` 形式のURLを表示するため、
+    それをそのまま渡されても動くよう ws/wss スキームへ読み替える。
+    """
+    return normalize_cloud_host(
+        cli_value or os.environ.get(ENV_CLOUD_HOST) or TW_CLOUD_HOST
+    )
+
+
+def normalize_cloud_host(host: str) -> str:
+    """cloudサーバのURLを検証し、ws/wssスキームに正規化する。"""
+    host = host.strip().rstrip("/")
+    if not host:
+        raise ValueError("cloudサーバのURLが空です")
+    # Renderなどの管理画面からコピーしたhttp(s)://をそのまま使えるようにする
+    if host.startswith("https://"):
+        host = "wss://" + host.removeprefix("https://")
+    elif host.startswith("http://"):
+        host = "ws://" + host.removeprefix("http://")
+    if not host.startswith(("ws://", "wss://")):
+        raise ValueError(
+            f"cloudサーバのURLは ws:// か wss:// で始まる必要があります: {host!r}"
+        )
+    if host.startswith("ws://") and not _is_local(host):
+        # TurboWarpのページはHTTPSで配信されるため、平文wsはブラウザの
+        # mixed contentブロックに引っかかりScratch側からは繋がらない
+        raise ValueError(
+            f"外部ホストへは wss:// を使ってください（TLSなしはScratch側から繋がりません）: {host!r}"
+        )
+    return host
+
+
+def _is_local(host: str) -> bool:
+    netloc = host.split("://", 1)[1].split("/", 1)[0].split(":", 1)[0]
+    return netloc in ("localhost", "127.0.0.1", "::1", "[::1]")
+
+
 def fetch_all_vars(
     project_id: str,
     *,
-    cloud_host: str = TW_CLOUD_HOST,
+    cloud_host: str | None = None,
     timeout: float = 2.0,
     username: str = "suzuleague",
 ) -> dict[str, str]:
@@ -55,7 +99,7 @@ def fetch_all_vars(
     values: dict[str, str] = {}
     try:
         ws.connect(
-            cloud_host,
+            resolve_cloud_host(cloud_host),
             origin="https://turbowarp.org",
             timeout=timeout,
             header={"User-Agent": "scratchattach/2.0.0 (suzuleague)"},
@@ -90,11 +134,13 @@ class CloudBridge:
         self,
         project_id: str,
         *,
+        cloud_host: str | None = None,
         on_answer: Callable[[int], None] | None = None,
         on_ack: Callable[[int], None] | None = None,
         on_error: Callable[[str], None] | None = None,
     ) -> None:
         self.project_id = project_id
+        self.cloud_host = resolve_cloud_host(cloud_host)
         self.on_answer = on_answer
         self.on_ack = on_ack
         self.on_error = on_error or (lambda msg: print(f"[cloud] {msg}"))
@@ -112,6 +158,7 @@ class CloudBridge:
             self.project_id,
             purpose="鈴鹿高専 高専祭ステージイベント「スズリーグ」の進行システム",
             contact="https://github.com/InoueKoshi",
+            cloud_host=self.cloud_host,
         )
         self._events = self.cloud.events()
 
@@ -194,21 +241,28 @@ class CloudBridge:
                 self.on_error(f"不正なACK値を無視: {value!r}")
 
 
-def smoke_test(project_id: str, listen_seconds: float = 10.0) -> None:
+def smoke_test(
+    project_id: str,
+    listen_seconds: float = 10.0,
+    cloud_host: str | None = None,
+) -> None:
     """疎通確認: 変数を書き込み→読み戻し→イベント受信を待つ。
 
-    使い方: uv run python -m suzuleague.cloud [--project-id ID]
+    使い方: uv run python -m suzuleague.cloud [--project-id ID] [--cloud-host URL]
     別クライアント（TurboWarpで開いたScratch画面等）から
     ☁ S2P_ANSWER を書き換えると受信ログが出る。
+    セルフホストのサーバに切り替えたときの動作確認にも使う。
     """
     received: list[tuple[str, object]] = []
 
     bridge = CloudBridge(
         project_id,
+        cloud_host=cloud_host,
         on_answer=lambda pct: received.append(("answer", pct)),
         on_ack=lambda code: received.append(("ack", code)),
     )
-    print(f"[1/3] TurboWarp cloudへ接続中... (project_id={project_id})")
+    print(f"[1/3] cloudサーバへ接続中... (project_id={project_id})")
+    print(f"      接続先: {bridge.cloud_host}")
     bridge.connect()
     print("      接続OK")
 
@@ -216,7 +270,9 @@ def smoke_test(project_id: str, listen_seconds: float = 10.0) -> None:
     now = int(time.time())
     bridge._set_var(protocol.VAR_HEARTBEAT, now)
     time.sleep(1)
-    readback = fetch_all_vars(project_id).get(protocol.VAR_HEARTBEAT)
+    readback = fetch_all_vars(project_id, cloud_host=bridge.cloud_host).get(
+        protocol.VAR_HEARTBEAT
+    )
     print(f"      書き込み={now} 読み戻し={readback}")
     if str(readback) != str(now):
         print("      × 読み戻し値が一致しません")
@@ -239,11 +295,21 @@ def smoke_test(project_id: str, listen_seconds: float = 10.0) -> None:
 def main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(description="TurboWarp cloud疎通テスト")
+    parser = argparse.ArgumentParser(description="cloudサーバ疎通テスト")
     parser.add_argument("--project-id", default=None)
     parser.add_argument("--listen", type=float, default=10.0, help="受信待機秒数")
+    parser.add_argument(
+        "--cloud-host",
+        default=None,
+        help=f"接続先cloudサーバ (環境変数 {ENV_CLOUD_HOST} でも指定可。既定は公開サーバ)",
+    )
     args = parser.parse_args()
-    smoke_test(resolve_project_id(args.project_id), args.listen)
+    try:
+        smoke_test(
+            resolve_project_id(args.project_id), args.listen, cloud_host=args.cloud_host
+        )
+    except ValueError as e:
+        parser.error(str(e))
 
 
 if __name__ == "__main__":

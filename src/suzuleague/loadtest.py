@@ -30,7 +30,7 @@ import time
 
 import websocket
 
-from .cloud import TW_CLOUD_HOST
+from .cloud import TW_CLOUD_HOST, normalize_cloud_host
 
 # TurboWarpのcloud-serverはユーザ名を検証する（英数と_-のみ、20文字以内）。
 # 実際の観客も "player123456" 形式の自動生成名で繋ぐので、それに合わせる。
@@ -197,6 +197,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--host",
+        "--cloud-host",
+        dest="host",
         default="ws://localhost:9080",
         help="cloudサーバのURL（既定はローカル。公開サーバへの負荷検証は禁止）",
     )
@@ -225,6 +227,11 @@ def main() -> None:
         steps = [int(x) for x in args.ramp.split(",")]
     else:
         steps = [args.clients or 10]
+
+    try:
+        args.host = normalize_cloud_host(args.host)
+    except ValueError as e:
+        parser.error(str(e))
 
     if TW_CLOUD_HOST in args.host and max(steps) > 5:
         parser.error(
