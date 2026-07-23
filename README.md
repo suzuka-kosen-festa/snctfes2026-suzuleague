@@ -53,6 +53,7 @@ uv run python -m suzuleague.sim_scratch --auto
 | `src/suzuleague/cloud.py` | TurboWarp cloud接続ブリッジ（送信・受信・resync） |
 | `src/suzuleague/dashboard.py` | 司会進行用CLIダッシュボード |
 | `src/suzuleague/sim_scratch.py` | Scratch側シミュレータ（開発用） |
+| `src/suzuleague/loadtest.py` | cloudサーバの同時接続数の負荷テスト（開発用） |
 | `tests/` | ユニットテスト（エンジン・プロトコル） |
 
 ## 開発体制

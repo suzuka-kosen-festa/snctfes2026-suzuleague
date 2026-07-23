@@ -23,7 +23,12 @@ import time
 import scratchattach as sa
 
 from . import protocol
-from .cloud import TW_CLOUD_HOST, fetch_all_vars, resolve_project_id
+from .cloud import (
+    ENV_CLOUD_HOST,
+    fetch_all_vars,
+    resolve_cloud_host,
+    resolve_project_id,
+)
 from .engine import State
 from .questions import QuestionSet
 
@@ -35,11 +40,13 @@ class ScratchSimulator:
         self,
         project_id: str,
         *,
+        cloud_host: str | None = None,
         auto: bool = False,
         fixed_answer: int | None = None,
         auto_delay: float = 1.0,
     ) -> None:
         self.project_id = project_id
+        self.cloud_host = resolve_cloud_host(cloud_host)
         self.auto = auto
         self.fixed_answer = fixed_answer
         self.auto_delay = auto_delay
@@ -56,13 +63,16 @@ class ScratchSimulator:
         # 起動前に送信済みの状態があれば初期ダンプから取り込む
         self._p2s = {
             k: v
-            for k, v in fetch_all_vars(self.project_id).items()
+            for k, v in fetch_all_vars(
+                self.project_id, cloud_host=self.cloud_host
+            ).items()
             if k.startswith("P2S_")
         }
         self.cloud = sa.get_tw_cloud(
             self.project_id,
             purpose="スズリーグ Scratch側シミュレータ（開発用）",
             contact="https://github.com/InoueKoshi",
+            cloud_host=self.cloud_host,
         )
         self._events = self.cloud.events()
 
@@ -175,6 +185,7 @@ class ScratchSimulator:
     def run(self) -> None:
         mode = "自動回答" if self.auto else "手動回答"
         print(f"Scratchシミュレータ起動 ({mode}モード, project_id={self.project_id})")
+        print(f"  接続先: {self.cloud_host}")
         print("入力: <0-100>=回答送信 / ack=演出完了通知 / quit=終了")
         while True:
             try:
@@ -219,14 +230,23 @@ def main() -> None:
     parser.add_argument("--auto", action="store_true", help="回答受付になったら自動回答する")
     parser.add_argument("--fixed", type=int, default=None, help="自動回答の固定値(省略時は乱数)")
     parser.add_argument("--delay", type=float, default=1.0, help="自動回答までの秒数")
+    parser.add_argument(
+        "--cloud-host",
+        default=None,
+        help=f"接続先cloudサーバ (環境変数 {ENV_CLOUD_HOST} でも指定可。既定は公開サーバ)",
+    )
     args = parser.parse_args()
 
-    sim = ScratchSimulator(
-        resolve_project_id(args.project_id),
-        auto=args.auto,
-        fixed_answer=args.fixed,
-        auto_delay=args.delay,
-    )
+    try:
+        sim = ScratchSimulator(
+            resolve_project_id(args.project_id),
+            cloud_host=args.cloud_host,
+            auto=args.auto,
+            fixed_answer=args.fixed,
+            auto_delay=args.delay,
+        )
+    except ValueError as e:
+        parser.error(str(e))
     sim.connect()
     sim.run()
 

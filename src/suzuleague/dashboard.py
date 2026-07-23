@@ -18,7 +18,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from .cloud import CloudBridge, resolve_project_id
+from .cloud import ENV_CLOUD_HOST, CloudBridge, resolve_project_id
 from .engine import GameEngine, GameError, State
 from .protocol import ACK_ANIMATION_DONE
 
@@ -226,8 +226,13 @@ class Dashboard:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="スズリーグ 司会進行ダッシュボード")
-    parser.add_argument("--project-id", default=None, help="TurboWarp cloudのルームID")
+    parser.add_argument("--project-id", default=None, help="cloudサーバのルームID")
     parser.add_argument("--offline", action="store_true", help="cloud接続なしで起動")
+    parser.add_argument(
+        "--cloud-host",
+        default=None,
+        help=f"接続先cloudサーバ (環境変数 {ENV_CLOUD_HOST} でも指定可。既定は公開サーバ)",
+    )
     parser.add_argument(
         "--perfect-bonus",
         type=int,
@@ -241,14 +246,19 @@ def main() -> None:
     if not args.offline:
         project_id = resolve_project_id(args.project_id)
         dashboard_holder: list[Dashboard] = []
-        bridge = CloudBridge(
-            project_id,
-            on_answer=lambda pct: dashboard_holder[0].on_cloud_answer(pct),
-            on_ack=lambda code: dashboard_holder[0].on_cloud_ack(code),
-        )
+        try:
+            bridge = CloudBridge(
+                project_id,
+                cloud_host=args.cloud_host,
+                on_answer=lambda pct: dashboard_holder[0].on_cloud_answer(pct),
+                on_ack=lambda code: dashboard_holder[0].on_cloud_ack(code),
+            )
+        except ValueError as e:
+            parser.error(str(e))
         dashboard = Dashboard(engine, bridge)
         dashboard_holder.append(dashboard)
-        print(f"TurboWarp cloudに接続中... (project_id={project_id})")
+        print(f"cloudサーバに接続中... (project_id={project_id})")
+        print(f"  接続先: {bridge.cloud_host}")
         bridge.connect()
         bridge.push(engine.snapshot())  # 初期状態を送信
     else:
