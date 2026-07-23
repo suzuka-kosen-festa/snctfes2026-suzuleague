@@ -16,12 +16,18 @@ Scratch(TurboWarp) <-> TurboWarp cloud <-> Python(scratchattach) [<-> Firestore(
 
 | ドキュメント | 内容 | 対象読者 |
 |---|---|---|
+| [**しくみの図解**](https://htmlpreview.github.io/?https://github.com/suzuka-kosen-festa/snctfes2026-suzuleague/blob/main/docs/explainer.html) | システムの仕組みを図で説明（専門用語なし） | **全員（プログラム未経験でも読める）** |
 | [docs/status.md](docs/status.md) | 進捗状況・残タスク・未解決の論点・リスク | 全員（現状把握） |
 | [docs/architecture.md](docs/architecture.md) | 全体構成・設計判断の理由・レイヤー構造・データフロー | 全員（まず読む） |
 | [docs/game-rules.md](docs/game-rules.md) | ゲームルール・進行ステートの遷移図・採点仕様 | 全員 |
 | [docs/protocol.md](docs/protocol.md) | Scratch⇔Python間のクラウド変数の通信仕様 | Scratch担当・バックエンド担当 |
 | [docs/development.md](docs/development.md) | セットアップ・動作確認・既知の落とし穴・本番チェックリスト | 開発者 |
 | [docs/イベント責任者作成の企画書.md](docs/イベント責任者作成の企画書.md) | イベントの企画書（ルール・タイムテーブル・台本） | 全員 |
+
+「しくみの図解」の実体は [docs/explainer.html](docs/explainer.html)。
+GitHub上でクリックするとHTMLのソースが表示されてしまうので、
+表のリンク（htmlpreview経由）から開くか、クローン後に
+`open docs/explainer.html`（Windowsは `start docs\explainer.html`）で開く。
 
 ## クイックスタート
 
