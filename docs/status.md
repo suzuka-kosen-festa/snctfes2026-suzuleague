@@ -7,6 +7,10 @@
 [GitHub Issues](https://github.com/suzuka-kosen-festa/snctfes2026-suzuleague/issues)
 で管理している。このドキュメントは節目ごとの棚卸しとして更新する。
 
+技術的な背景を知らない人には
+[しくみの図解](https://htmlpreview.github.io/?https://github.com/suzuka-kosen-festa/snctfes2026-suzuleague/blob/main/docs/explainer.html)
+（[docs/explainer.html](./explainer.html)）を先に渡すとよい。
+
 ## スケジュール
 
 | 項目 | 日付 |

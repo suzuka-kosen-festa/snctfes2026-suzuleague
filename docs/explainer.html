@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="鈴鹿高専 高専祭2026 ステージイベント「スズリーグ」進行システムの技術解説。">
+<title>スズリーグの仕組み — 技術のしくみを図で説明する</title>
+<style>
+  :root {
+    --paper:        #F4F6F5;
+    --paper-raised: #FFFFFF;
+    --ink:          #14181B;
+    --ink-soft:     #4A5459;
+    --ink-faint:    #79868C;
+    --rule:         #DDE3E1;
+    --rule-strong:  #C3CDCA;
+    --balloon:      #C81A5B;
+    --spot:         #C97A14;
+    --stage:        #0E5C5C;
+    --stage-wash:   #E4EFED;
+    --balloon-wash: #FBE7EE;
+    --spot-wash:    #FAEEDA;
+
+    --f-display: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+    --f-body: "Hiragino Sans", "Yu Gothic", "YuGothic", "Noto Sans JP", system-ui, sans-serif;
+    --f-data: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+
+    --measure: 34rem;
+    --gutter: clamp(1.25rem, 4vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:        #0F1315;
+      --paper-raised: #171D1F;
+      --ink:          #E7ECEA;
+      --ink-soft:     #A6B2B1;
+      --ink-faint:    #778586;
+      --rule:         #26302F;
+      --rule-strong:  #3A4746;
+      --balloon:      #FF6B9D;
+      --spot:         #F2B455;
+      --stage:        #4FB3AC;
+      --stage-wash:   #142A2A;
+      --balloon-wash: #2D1520;
+      --spot-wash:    #2A2113;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:        #0F1315;
+    --paper-raised: #171D1F;
+    --ink:          #E7ECEA;
+    --ink-soft:     #A6B2B1;
+    --ink-faint:    #778586;
+    --rule:         #26302F;
+    --rule-strong:  #3A4746;
+    --balloon:      #FF6B9D;
+    --spot:         #F2B455;
+    --stage:        #4FB3AC;
+    --stage-wash:   #142A2A;
+    --balloon-wash: #2D1520;
+    --spot-wash:    #2A2113;
+  }
+
+  :root[data-theme="light"] {
+    --paper:        #F4F6F5;
+    --paper-raised: #FFFFFF;
+    --ink:          #14181B;
+    --ink-soft:     #4A5459;
+    --ink-faint:    #79868C;
+    --rule:         #DDE3E1;
+    --rule-strong:  #C3CDCA;
+    --balloon:      #C81A5B;
+    --spot:         #C97A14;
+    --stage:        #0E5C5C;
+    --stage-wash:   #E4EFED;
+    --balloon-wash: #FBE7EE;
+    --spot-wash:    #FAEEDA;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.85;
+    -webkit-font-smoothing: antialiased;
+    text-size-adjust: 100%;
+  }
+
+  .wrap {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: 0 var(--gutter) 6rem;
+  }
+
+  /* ---------- 冒頭 ---------- */
+
+  .top {
+    padding: clamp(3rem, 9vw, 6rem) 0 clamp(2rem, 5vw, 3.5rem);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .eyebrow {
+    font-family: var(--f-data);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 1.5rem;
+  }
+
+  .top h1 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(2.1rem, 6.5vw, 3.6rem);
+    line-height: 1.25;
+    letter-spacing: 0.02em;
+    text-wrap: balance;
+    margin: 0 0 1.5rem;
+  }
+
+  .top h1 em {
+    font-style: normal;
+    color: var(--balloon);
+  }
+
+  .lede {
+    max-width: var(--measure);
+    font-size: 1.06rem;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2.5rem;
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    font-family: var(--f-data);
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .facts b {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ---------- セクション ---------- */
+
+  section {
+    padding-top: clamp(3.5rem, 8vw, 5.5rem);
+  }
+
+  .sec-head {
+    display: grid;
+    grid-template-columns: 3.5rem 1fr;
+    gap: 0 1rem;
+    align-items: start;
+    margin-bottom: 2rem;
+  }
+
+  .sec-num {
+    font-family: var(--f-display);
+    font-size: 2.4rem;
+    line-height: 1;
+    color: var(--balloon);
+    font-weight: 500;
+    padding-top: 0.1em;
+  }
+
+  .sec-head h2 {
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3.6vw, 2rem);
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .sec-head p {
+    grid-column: 2;
+    max-width: var(--measure);
+    color: var(--ink-soft);
+    margin: 0.75rem 0 0;
+  }
+
+  .body-col {
+    max-width: var(--measure);
+    margin-left: clamp(0rem, 4vw, 4.5rem);
+  }
+
+  .body-col p { margin: 0 0 1.25rem; }
+  .body-col p:last-child { margin-bottom: 0; }
+
+  h3 {
+    font-family: var(--f-body);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    margin: 2.5rem 0 0.9rem;
+  }
+
+  strong { font-weight: 700; }
+
+  .term {
+    color: var(--stage);
+    font-weight: 700;
+    font-style: normal;
+    border-bottom: 1px dotted currentColor;
+  }
+
+  code {
+    font-family: var(--f-data);
+    font-size: 0.85em;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    padding: 0.05em 0.35em;
+  }
+
+  /* ---------- 図の共通枠 ---------- */
+
+  figure {
+    margin: 2.5rem 0;
+  }
+
+  figcaption {
+    font-family: var(--f-data);
+    font-size: 0.74rem;
+    line-height: 1.7;
+    color: var(--ink-faint);
+    margin-top: 0.9rem;
+    padding-left: 0.85rem;
+    border-left: 2px solid var(--rule-strong);
+  }
+
+  .panel {
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    padding: clamp(1.25rem, 3.5vw, 2.25rem);
+  }
+
+  /* ---------- 図1: 三者 ---------- */
+
+  .triad {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 46rem) {
+    .triad {
+      grid-template-columns: 1fr auto 1fr;
+      align-items: stretch;
+    }
+  }
+
+  .node {
+    border: 1px solid var(--rule-strong);
+    padding: 1.15rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: var(--paper);
+  }
+
+  .node .role {
+    font-family: var(--f-data);
+    font-size: 0.68rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  .node .name {
+    font-family: var(--f-display);
+    font-size: 1.15rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .node .what {
+    font-size: 0.85rem;
+    line-height: 1.7;
+    color: var(--ink-soft);
+  }
+
+  .node.is-board {
+    background: var(--stage-wash);
+    border-color: var(--stage);
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    min-width: 11rem;
+  }
+
+  .node.is-board .name { color: var(--stage); }
+
+  .link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-faint);
+    padding: 0.35rem 0;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .link::before { content: "⇅"; }
+
+  @media (min-width: 46rem) {
+    .link::before { content: "⇄"; }
+  }
+
+  .triad-foot {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--rule-strong);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 1rem;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  .triad-foot .tag {
+    font-family: var(--f-data);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--spot);
+    border: 1px solid var(--spot);
+    padding: 0.15rem 0.5rem;
+  }
+
+  /* ---------- 図2: 黒板 ---------- */
+
+  .board {
+    background: var(--stage-wash);
+    border: 1px solid var(--stage);
+    padding: clamp(1.1rem, 3vw, 1.75rem);
+  }
+
+  .board-title {
+    font-family: var(--f-data);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--stage);
+    margin-bottom: 1rem;
+  }
+
+  .board-grid {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 34rem) {
+    .board-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .chalk {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.5rem 0.7rem;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    font-family: var(--f-data);
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chalk .k { color: var(--ink); }
+  .chalk .v { color: var(--balloon); font-weight: 600; }
+  .chalk .note {
+    display: block;
+    font-family: var(--f-body);
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    letter-spacing: 0;
+  }
+
+  /* ---------- 図3: 流れ ---------- */
+
+  .flow {
+    display: grid;
+    gap: 0;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 0 1.1rem;
+    padding: 1rem 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .step:first-child { border-top: none; padding-top: 0; }
+
+  .step .who {
+    font-family: var(--f-data);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding-top: 0.35em;
+    text-align: right;
+    color: var(--ink-faint);
+  }
+
+  .step[data-who="host"] .who { color: var(--balloon); }
+  .step[data-who="stage"] .who { color: var(--stage); }
+  .step[data-who="auto"] .who { color: var(--spot); }
+
+  .step .act { font-size: 0.92rem; line-height: 1.75; }
+
+  .step .act code {
+    font-family: var(--f-data);
+    font-size: 0.85em;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 0.05em 0.35em;
+  }
+
+  .step .sub {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+    margin-top: 0.2rem;
+  }
+
+  /* ---------- 図4: 128人の壁 ---------- */
+
+  .bars {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 0.35rem 0.85rem;
+    align-items: center;
+  }
+
+  @media (min-width: 42rem) {
+    .bar-row { grid-template-columns: 4.5rem 1fr 11rem; }
+  }
+
+  .bar-label {
+    font-family: var(--f-data);
+    font-size: 0.78rem;
+    text-align: right;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar-track {
+    position: relative;
+    height: 1.5rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--stage);
+  }
+
+  .bar-ghost {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 1px dashed var(--balloon);
+    background: repeating-linear-gradient(
+      45deg,
+      transparent, transparent 4px,
+      var(--balloon) 4px, var(--balloon) 5px
+    );
+    opacity: 0.55;
+  }
+
+  .bar-out {
+    grid-column: 2;
+    font-family: var(--f-data);
+    font-size: 0.73rem;
+    color: var(--stage);
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (min-width: 42rem) {
+    .bar-out { grid-column: 3; }
+  }
+
+  .bar-row[data-over="yes"] .bar-out { color: var(--balloon); }
+
+  .limit-note {
+    margin-top: 1.25rem;
+    padding: 0.9rem 1.1rem;
+    background: var(--balloon-wash);
+    border-left: 3px solid var(--balloon);
+    font-size: 0.88rem;
+    line-height: 1.75;
+  }
+
+  /* ---------- 技術スタック表 ---------- */
+
+  .scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    width: 100%;
+    min-width: 34rem;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 0.75rem 1rem 0.75rem 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+
+  th {
+    font-family: var(--f-data);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 400;
+    border-bottom-color: var(--rule-strong);
+  }
+
+  td.tool {
+    font-family: var(--f-data);
+    font-size: 0.82rem;
+    color: var(--ink);
+    white-space: nowrap;
+    padding-right: 1.5rem;
+  }
+
+  td.why { color: var(--ink-soft); }
+
+  /* ---------- 進捗 ---------- */
+
+  .prog { display: grid; gap: 0.75rem; }
+
+  .prog-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.3rem 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  @media (min-width: 40rem) {
+    .prog-row {
+      grid-template-columns: 13rem 1fr 5.5rem;
+      align-items: center;
+    }
+  }
+
+  .prog-name { font-size: 0.9rem; font-weight: 600; }
+
+  .prog-track {
+    height: 0.5rem;
+    background: var(--rule);
+    position: relative;
+  }
+
+  .prog-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--stage);
+  }
+
+  .prog-fill.is-none { background: var(--rule-strong); }
+
+  .prog-state {
+    font-family: var(--f-data);
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
+  }
+
+  .prog-row[data-done="yes"] .prog-state { color: var(--stage); }
+
+  /* ---------- 補足ボックス ---------- */
+
+  .aside {
+    margin: 2.5rem 0;
+    padding: 1.25rem 1.4rem;
+    background: var(--spot-wash);
+    border-left: 3px solid var(--spot);
+  }
+
+  .aside h4 {
+    font-family: var(--f-data);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--spot);
+    margin: 0 0 0.6rem;
+    font-weight: 600;
+  }
+
+  .aside p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.8;
+  }
+
+  .aside p + p { margin-top: 0.8rem; }
+
+  /* ---------- 末尾 ---------- */
+
+  .end {
+    margin-top: clamp(4rem, 9vw, 6rem);
+    padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-family: var(--f-data);
+    font-size: 0.74rem;
+    line-height: 1.9;
+    color: var(--ink-faint);
+  }
+
+  .end b { color: var(--ink-soft); font-weight: 400; }
+
+  ul.plain {
+    margin: 0 0 1.25rem;
+    padding-left: 1.1rem;
+  }
+
+  ul.plain li { margin-bottom: 0.5rem; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .bar-fill, .prog-fill { transition: width 0.4s ease; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">鈴鹿高専 高専祭 2026 ／ ステージイベント</p>
+    <h1>スズリーグは<br><em>3つの部品</em>でできている</h1>
+    <p class="lede">
+      ステージに映すクイズ画面、司会の手元のパソコン、そのあいだをつなぐ「インターネット上の共有の黒板」。
+      このシステムがどう動いているのかを、プログラムを知らない人向けに順番に説明します。
+    </p>
+    <div class="facts">
+      <span><b>本番</b> 2026/10/31 – 11/1</span>
+      <span><b>持ち時間</b> 40分（準備10分）</span>
+      <span><b>出場</b> 4チーム・15人</span>
+      <span><b>1チーム</b> 5問・バルーン100個</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">1</div>
+      <h2>そもそも何をするシステムか</h2>
+      <p>
+        ネプリーグの「パーセントバルーン」をまねたクイズを、ステージの上で滞りなく進めるための仕掛けです。
+      </p>
+    </div>
+
+    <div class="body-col">
+      <p>
+        出場者は「〜な人の割合は何％？」という問題に数字で答えます。正解とのズレの分だけ、
+        持っているバルーン100個が減っていきます。<strong>ぴったり当てればノーダメージ、大きく外せば大きく減る。</strong>
+        0個になったチームはそこでゲームオーバーです。
+      </p>
+      <p>
+        つまりこのシステムがやるべき仕事は3つだけです。<strong>問題を出す。答えを受け取る。点数を計算して結果を見せる。</strong>
+        ただしそれを、お客さんの前で、40分のあいだ、止まらずにやり切る必要があります。
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">2</div>
+      <h2>全体像 ─ 3つの部品と、その真ん中の黒板</h2>
+      <p>
+        画面を出す係と、進行を決める係を、別々のコンピュータに分けています。
+      </p>
+    </div>
+
+    <figure>
+      <div class="panel">
+        <div class="triad">
+          <div class="node">
+            <span class="role">ステージ側</span>
+            <span class="name">Scratchの画面</span>
+            <span class="what">プロジェクターに映す表示係。問題文やバルーンの絵を出す。自分では何も判断せず、言われたとおりに表示するだけ。</span>
+          </div>
+
+          <div class="link" aria-hidden="true"></div>
+
+          <div class="node is-board">
+            <span class="role">インターネット上</span>
+            <span class="name">共有の黒板</span>
+            <span class="what">両者が同時に見ている1枚の黒板。片方が書き換えると、もう片方にすぐ伝わる。</span>
+          </div>
+
+          <div class="link" aria-hidden="true"></div>
+
+          <div class="node">
+            <span class="role">司会PC側</span>
+            <span class="name">Pythonの進行係</span>
+            <span class="what">ゲームの頭脳。今が何問目か、誰の番か、何点減ったかを全部ここが決める。司会補助がキーボードで操作する。</span>
+          </div>
+        </div>
+
+        <div class="triad-foot">
+          <span class="tag">本番で追加</span>
+          <span>観客のスマホも、同じ黒板を見にくる。QRコードを読んで開くだけで、客席から同じ問題に参加できる。</span>
+        </div>
+      </div>
+      <figcaption>
+        ステージ画面と司会PCは直接つながっていない。かならず真ん中の黒板を経由する。
+        これにより、片方が作り直されてももう片方に影響しない。
+      </figcaption>
+    </figure>
+
+    <div class="body-col">
+      <p>
+        大事なのは<strong>「判断するのは司会PC側だけ」</strong>という点です。ステージのScratch画面は、
+        自分から進んだり点数を計算したりしません。黒板に書かれた内容をそのまま絵にするだけの、いわば大きなテレビです。
+      </p>
+      <p>
+        こうしておくと、ルールを変えたくなったときにScratch側をさわらずに済みます。
+        逆に画面の見た目を作り直しても、進行のプログラムはそのまま使えます。
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">3</div>
+      <h2>「共有の黒板」の正体</h2>
+      <p>
+        <em class="term">クラウド変数</em>という、Scratchにもともと備わっている仕組みを使っています。
+      </p>
+    </div>
+
+    <div class="body-col">
+      <p>
+        クラウド変数は、インターネット上に置かれた名前付きの数字の置き場です。
+        誰かが書き換えると、その瞬間に、同じ場所を見ている全員の画面に反映されます。
+        オンラインゲームの得点表を全員で共有しているようなものだと思ってください。
+      </p>
+      <p>
+        スズリーグでは、この置き場を<strong>10個ほど用意して役割を決めて</strong>使っています。
+        「今のステート（進行段階）はここに書く」「回答はここに書く」といった取り決めです。
+      </p>
+    </div>
+
+    <figure>
+      <div class="board">
+        <div class="board-title">黒板の中身（実際に使っている置き場）</div>
+        <div class="board-grid">
+          <div class="chalk"><span class="k">P2S_STATE<span class="note">今どの段階か</span></span><span class="v">3</span></div>
+          <div class="chalk"><span class="k">P2S_TEAM<span class="note">何チーム目か</span></span><span class="v">2</span></div>
+          <div class="chalk"><span class="k">P2S_ROUND<span class="note">何問目か</span></span><span class="v">4</span></div>
+          <div class="chalk"><span class="k">P2S_QID<span class="note">問題の背番号</span></span><span class="v">17</span></div>
+          <div class="chalk"><span class="k">P2S_BALLOONS<span class="note">残りバルーン</span></span><span class="v">62</span></div>
+          <div class="chalk"><span class="k">P2S_CORRECT<span class="note">正解％（隠し中は−1）</span></span><span class="v">-1</span></div>
+          <div class="chalk"><span class="k">S2P_ANSWER<span class="note">出場者の回答</span></span><span class="v">45</span></div>
+          <div class="chalk"><span class="k">HEARTBEAT<span class="note">司会PCの生存確認</span></span><span class="v">…</span></div>
+        </div>
+      </div>
+      <figcaption>
+        P2S = Python から Scratch へ。S2P = Scratch から Python へ。名前で向きが分かるようにしてある。
+        正解は発表するまで −1 を入れておき、ステージ側にうっかり表示されないようにしている。
+      </figcaption>
+    </figure>
+
+    <div class="aside">
+      <h4>なぜこの仕組みを選んだのか</h4>
+      <p>
+        Scratch本家の同じ機能を使うと、<strong>参加者全員にScratchアカウントのログインを強いる</strong>ことになります。
+        客席のお客さんに「まずアカウントを作ってください」とは言えません。
+      </p>
+      <p>
+        そこで、Scratchを高速化する有志プロジェクト「TurboWarp」が用意している同等の仕組みを使っています。
+        こちらは<strong>URLを開くだけで参加でき、ログインが要りません。</strong>
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">4</div>
+      <h2>黒板には数字しか書けない</h2>
+      <p>
+        この制約が、設計のかたちをいくつか決めています。
+      </p>
+    </div>
+
+    <div class="body-col">
+      <p>
+        クラウド変数に置けるのは<strong>数字だけ</strong>です。「日本人の何％が朝食にごはんを食べる？」という
+        問題文をそのまま送ることはできません。
+      </p>
+      <p>
+        そこで、問題文には<strong>背番号</strong>をつけました。問題文の一覧はScratch側とPython側の両方が持っておき、
+        黒板には「17番の問題を出して」という数字だけを流します。Scratch側は17行目の文章を表示する、という具合です。
+      </p>
+      <p>
+        <strong>この方式の弱点は、問題を差し替えたら両方を更新しないとズレることです。</strong>
+        Python側から貼り付け用の一覧を書き出すコマンドを用意して、手作業のコピーミスが起きないようにしてあります。
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">5</div>
+      <h2>1問が進むときに起きていること</h2>
+      <p>
+        司会補助がキーを1回押すたびに、以下が数十ミリ秒で流れます。
+      </p>
+    </div>
+
+    <figure>
+      <div class="panel">
+        <div class="flow">
+          <div class="step" data-who="host">
+            <span class="who">司会PC</span>
+            <span class="act">キーボードで <code>n</code>（次へ）を押す
+              <span class="sub">進行はすべて人の合図で進む。勝手に進むタイマーは置いていない</span></span>
+          </div>
+          <div class="step" data-who="auto">
+            <span class="who">黒板</span>
+            <span class="act">問題の背番号・チーム番号・段階が書き換わる
+              <span class="sub">最後に「更新カウンタ」を書き換えるのが決まり</span></span>
+          </div>
+          <div class="step" data-who="stage">
+            <span class="who">ステージ</span>
+            <span class="act">更新カウンタの変化に気づき、問題文を表示する
+              <span class="sub">カウンタが最後に変わるので、途中の中途半端な状態を映さずに済む</span></span>
+          </div>
+          <div class="step" data-who="host">
+            <span class="who">司会PC</span>
+            <span class="act">もう一度 <code>n</code> を押して回答受付へ
+              <span class="sub">シンキングタイム20秒</span></span>
+          </div>
+          <div class="step" data-who="stage">
+            <span class="who">出場者</span>
+            <span class="act">手元で数字を入力して送信 → 黒板の回答欄が書き換わる</span>
+          </div>
+          <div class="step" data-who="auto">
+            <span class="who">司会PC</span>
+            <span class="act">回答を受け取り、画面に「回答45％を受信」と出る
+              <span class="sub">届かなければ司会補助が代わりに手で打ち込める</span></span>
+          </div>
+          <div class="step" data-who="host">
+            <span class="who">司会PC</span>
+            <span class="act">正解発表。ズレの分だけバルーンを減らす計算をする
+              <span class="sub">正解55％・回答45％なら10個減って残り90個</span></span>
+          </div>
+          <div class="step" data-who="stage">
+            <span class="who">ステージ</span>
+            <span class="act">正解が黒板に出るので、バルーンが割れる演出を再生する</span>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        点数の計算はすべて司会PC側でおこなう。ステージ側は計算結果を受け取って絵にするだけなので、
+        表示がおかしくても点数が狂うことはない。
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">6</div>
+      <h2>使っている道具と、選んだ理由</h2>
+      <p>
+        流行っているからではなく、この40分を落とさないために選んでいます。
+      </p>
+    </div>
+
+    <figure>
+      <div class="scroll-x">
+        <table>
+          <thead>
+            <tr>
+              <th>道具</th>
+              <th>役割</th>
+              <th>選んだ理由</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="tool">Scratch / TurboWarp</td>
+              <td>ステージ画面</td>
+              <td class="why">Scratch担当が作りやすい。TurboWarpで開くとログイン不要のまま通信できる</td>
+            </tr>
+            <tr>
+              <td class="tool">Python</td>
+              <td>進行と採点</td>
+              <td class="why">ルールの変更に強く、テストが書きやすい。司会PCで動かす</td>
+            </tr>
+            <tr>
+              <td class="tool">scratchattach</td>
+              <td>PythonとScratchの橋渡し</td>
+              <td class="why">クラウド変数をPythonから読み書きするための部品</td>
+            </tr>
+            <tr>
+              <td class="tool">cloud-server</td>
+              <td>共有の黒板そのもの</td>
+              <td class="why">TurboWarpが公開しているサーバのプログラム。本番は自分たちで動かす（次の章）</td>
+            </tr>
+            <tr>
+              <td class="tool">rich</td>
+              <td>司会用の画面表示</td>
+              <td class="why">黒い画面に見やすい表を出す。派手なUIより誤操作しにくい</td>
+            </tr>
+            <tr>
+              <td class="tool">pytest</td>
+              <td>自動テスト</td>
+              <td class="why">採点や進行のルールを46項目に分けて自動確認。0.1秒で全部通る</td>
+            </tr>
+            <tr>
+              <td class="tool">uv</td>
+              <td>環境の準備</td>
+              <td class="why">別のPCでも <code>uv sync</code> だけで同じ状態が作れる</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption>
+        Scratch側とPython側で担当者が分かれているため、両者の境目は「黒板の使い方の取り決め」1枚だけにしてある。
+      </figcaption>
+    </figure>
+
+    <div class="aside">
+      <h4>司会画面をあえて地味にしている理由</h4>
+      <p>
+        司会補助が本番で使う画面は、黒い背景に文字が並ぶだけの素朴なものです。
+        きれいなボタンを並べることもできますが、<strong>ステージ上で焦っているときに押し間違えないこと</strong>のほうが大事です。
+        キーを1回押せば1段階進む、それだけの操作に絞っています。
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">7</div>
+      <h2>本番前に見つかった落とし穴 ─ 128人の壁</h2>
+      <p>
+        観客のスマホ参加を実現するにあたって、実際に負荷をかけて調べました。
+      </p>
+    </div>
+
+    <div class="body-col">
+      <p>
+        黒板を提供しているサーバには、<strong>1つの部屋に入れる人数の上限が128人</strong>という制限がありました。
+        観客が100人来て、出場者15人がスマホを持ち、ステージ画面と司会PCも入る。あっという間に足りません。
+      </p>
+    </div>
+
+    <figure>
+      <div class="panel">
+        <div class="bars">
+          <div class="bar-row">
+            <span class="bar-label">50人</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: 35.7%;"></div>
+            </div>
+            <span class="bar-out">50人全員に届いた</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">100人</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: 71.4%;"></div>
+            </div>
+            <span class="bar-out">100人全員に届いた</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">128人</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: 91.4%;"></div>
+            </div>
+            <span class="bar-out">128人全員に届いた</span>
+          </div>
+          <div class="bar-row" data-over="yes">
+            <span class="bar-label">140人</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: 91.4%;"></div>
+              <div class="bar-ghost" style="left: 91.4%; right: 0;"></div>
+            </div>
+            <span class="bar-out">128人まで／12人が無反応</span>
+          </div>
+        </div>
+
+        <div class="limit-note">
+          <strong>いちばん怖いのは、あふれた人にエラーが出ないことです。</strong>
+          140人で試したとき、140人全員が「つながった」状態になったのに、
+          実際に画面が更新されたのは128人だけでした。残る12人のスマホは、
+          つながっているように見えたまま、何も起きません。
+          本人にも運営にも気づけません。
+        </div>
+      </div>
+      <figcaption>
+        自分のパソコンに同じサーバを立てて実測した結果（2026年7月22日）。
+        本家のサーバに大量接続するのは利用規約に反するため、そちらへは3台だけで疎通確認している。
+      </figcaption>
+    </figure>
+
+    <div class="body-col">
+      <h3>だから、黒板を自分たちで用意することにした</h3>
+      <p>
+        この黒板サーバのプログラムは公開されているので、<strong>同じものを自分たちで動かせます。</strong>
+        自分たちのものなら、128人という上限を書き換えられます。
+      </p>
+      <p>
+        費用はかけません。無料で使えるホスティングサービス（Render）に置く方針で、
+        <strong>Scratch側もPython側もプログラムの書き換えは不要</strong>です。
+        開くURLの末尾に接続先を書き足すだけで切り替わるようにしてあります。
+      </p>
+      <p>
+        自分たちのサーバにするメリットはもう一つあります。本家のサーバは
+        <strong>「有志が善意で運営している無料サービス」</strong>と明記されています。
+        日時が決まっているイベントの成否を、そこに預けるのは避けたいという判断です。
+      </p>
+    </div>
+
+    <div class="aside">
+      <h4>無料ゆえの注意点がひとつ</h4>
+      <p>
+        無料プランのサーバは、15分間だれも使わないと眠ります。起こすのに1分ほどかかります。
+        イベント中は司会PCが15秒ごとに信号を送り続けるので眠りませんが、
+        <strong>開演の30分前にURLを一度開いて起こしておく</strong>手順を、当日の段取りに入れてあります。
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">8</div>
+      <h2>いまどこまでできているか</h2>
+      <p>
+        完成目標は2026年8月末。本番までにリハーサルの時間を確保するためです。
+      </p>
+    </div>
+
+    <figure>
+      <div class="panel">
+        <div class="prog">
+          <div class="prog-row" data-done="yes">
+            <span class="prog-name">進行と採点のプログラム</span>
+            <span class="prog-track"><span class="prog-fill" style="width:100%"></span></span>
+            <span class="prog-state">完了</span>
+          </div>
+          <div class="prog-row" data-done="yes">
+            <span class="prog-name">Scratchとの通信のしくみ</span>
+            <span class="prog-track"><span class="prog-fill" style="width:100%"></span></span>
+            <span class="prog-state">完了</span>
+          </div>
+          <div class="prog-row" data-done="yes">
+            <span class="prog-name">接続先の切り替え機能</span>
+            <span class="prog-track"><span class="prog-fill" style="width:100%"></span></span>
+            <span class="prog-state">完了</span>
+          </div>
+          <div class="prog-row">
+            <span class="prog-name">黒板サーバの用意</span>
+            <span class="prog-track"><span class="prog-fill is-none" style="width:0%"></span></span>
+            <span class="prog-state">これから</span>
+          </div>
+          <div class="prog-row">
+            <span class="prog-name">本番の問題データ</span>
+            <span class="prog-track"><span class="prog-fill is-none" style="width:0%"></span></span>
+            <span class="prog-state">これから</span>
+          </div>
+          <div class="prog-row">
+            <span class="prog-name">観客のスマホ参加</span>
+            <span class="prog-track"><span class="prog-fill is-none" style="width:0%"></span></span>
+            <span class="prog-state">これから</span>
+          </div>
+          <div class="prog-row">
+            <span class="prog-name">ステージ画面（Scratch担当）</span>
+            <span class="prog-track"><span class="prog-fill" style="width:40%"></span></span>
+            <span class="prog-state">作成中</span>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        Scratch側の実装を待たずに検証できるよう、Scratchのふりをする「代役プログラム」を作ってある。
+        これにより、通信部分は完成した状態で待てている。
+      </figcaption>
+    </figure>
+
+    <div class="body-col">
+      <h3>まだ決まっていないこと</h3>
+      <ul class="plain">
+        <li><strong>観客は何人を想定するか</strong> ─ サーバの上限を何人に設定するかが、この数字で決まります。</li>
+        <li><strong>出場者のスマホ画面を客席から見えなくする方法</strong> ─ 手元の回答が見えると出題の意味がなくなります。企画書にも宿題として書かれています。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">9</div>
+      <h2>止まったらどうするか</h2>
+      <p>
+        ステージイベントなので、動かなかったときの逃げ道を先に用意しています。
+      </p>
+    </div>
+
+    <div class="body-col">
+      <ul class="plain">
+        <li><strong>出場者の回答が届かない</strong> ─ 司会補助が手元で数字を打ち込めば、そのまま進行できます。</li>
+        <li><strong>ステージ画面が固まった／リロードした</strong> ─ 司会PCで <code>resync</code> と打つと、
+          今の状態がすべて黒板に書き直され、画面が復帰します。</li>
+        <li><strong>司会PCが落ちた</strong> ─ ステージ側は生存確認の信号が途切れたことを検知できます。</li>
+        <li><strong>サーバに繋がらない</strong> ─ 司会PC上で黒板を動かして急場をしのぐ手順を用意します。</li>
+      </ul>
+      <p>
+        通信のしくみ上、黒板の内容は全員が切断されると消えます。
+        そのため<strong>「正しい状態を持っているのは常に司会PCで、黒板はその写しにすぎない」</strong>という
+        つくりにしてあります。写しが消えても、いつでも書き直せます。
+      </p>
+    </div>
+  </section>
+
+  <div class="end">
+    <p>
+      <b>この資料について</b><br>
+      鈴鹿高専 高専祭2026 ステージイベント「スズリーグ」進行システムの技術解説。2026年7月23日時点の状況にもとづく。<br>
+      詳細な仕様は開発リポジトリの docs/architecture.md・docs/protocol.md を参照。
+    </p>
+  </div>
+
+</div>
+</body>
+</html>
