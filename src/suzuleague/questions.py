@@ -104,13 +104,40 @@ class QuestionSet:
             lines.append(q.text if q else "")
         return "\n".join(lines) + "\n"
 
+    def export_audience_json(self) -> str:
+        """観客用ページに埋め込む問題文のJSONを生成する。
+
+        観客の画面は正解を先に知ってはいけないので、**問題文だけ**を渡す。
+        正解は正解発表のタイミングで cloud 変数 P2S_CORRECT から届く。
+        """
+        import json
+
+        table = {str(q.id): q.text for q in sorted(self.questions, key=lambda q: q.id)}
+        return json.dumps(table, ensure_ascii=False, indent=2)
+
 
 def main() -> None:
-    """問題リストのScratch貼り付け用テキストを標準出力に出す。
+    """問題リストを外部向けの形式で書き出す。
 
-    使い方: uv run python -m suzuleague.questions > questions.txt
+    使い方:
+      uv run python -m suzuleague.questions > questions.txt        # Scratch貼り付け用
+      uv run python -m suzuleague.questions --audience-json        # 観客ページ用
     """
-    print(QuestionSet().export_scratch_list(), end="")
+    import argparse
+
+    parser = argparse.ArgumentParser(description="問題リストの書き出し")
+    parser.add_argument(
+        "--audience-json",
+        action="store_true",
+        help="観客用ページに埋め込むJSONを出力する（既定はScratch貼り付け用テキスト）",
+    )
+    args = parser.parse_args()
+
+    qs = QuestionSet()
+    if args.audience_json:
+        print(qs.export_audience_json())
+    else:
+        print(qs.export_scratch_list(), end="")
 
 
 if __name__ == "__main__":
